@@ -1,0 +1,85 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1
+					],
+					"jsonFile" : "directory-.-Debug-d0094a50bb2071803777.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"projectIndex" : 0,
+					"source" : "."
+				},
+				{
+					"build" : "LoginRegistrationSystem",
+					"jsonFile" : "directory-LoginRegistrationSystem-Debug-7a045a7b0a8c5044190b.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.8"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 0,
+					"source" : "LoginRegistrationSystem",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0,
+						1
+					],
+					"name" : "LoginRegistrationSystem",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 1,
+					"id" : "LoginRegistrationSystem::@111bceb986aa82c7cf73",
+					"jsonFile" : "target-LoginRegistrationSystem-Debug-f1a1d29d1592fbbb74af.json",
+					"name" : "LoginRegistrationSystem",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "sqlite3::@111bceb986aa82c7cf73",
+					"jsonFile" : "target-sqlite3-Debug-8c827d940093616fc281.json",
+					"name" : "sqlite3",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "E:/GitHub/Login-Registration-System/out/build/x64-debug",
+		"source" : "E:/GitHub/Login-Registration-System"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 7
+	}
+}

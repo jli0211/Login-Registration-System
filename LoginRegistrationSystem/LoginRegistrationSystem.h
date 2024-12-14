@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <sqlite3.h>
+#include "encrypt.h"
 // TODO: Reference additional headers your program requires here.
 class LoginSystem {
 
@@ -50,11 +51,20 @@ public:
 
 	// Login display for user's successfully logging in
 	void loginSystem();
+
+	// Sets new username for current user.
+	void setNewUsername(const std::string& newUsername);
+
+	// Sets new password for current user.
+	void setNewPassword(const std::string& newPassword);
+
+	void countTables();
 private:
 	std::string m_username;
 	std::string m_password;
 	sqlite3* m_userDB;
 	int m_rc;
-
+	void deleteTable();
 	static int callback(void* NotUsed, int argc, char** argv, char** azColName);
+	Encryption encryptor;
 };

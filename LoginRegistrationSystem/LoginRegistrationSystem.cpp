@@ -8,7 +8,7 @@ void LoginSystem::checkDB()
 {
     char* errMessage = 0;
 
-    // Open a database (it will be created if it doesn't exist)
+    // Open the database (it will be created if it doesn't exist)
     m_rc = sqlite3_open("E:/dev/LoginRegistrationSystem/LoginRegistrationSystem/user.db", &m_userDB);
     if (m_rc) {
         std::cerr << "Can't open database: " << sqlite3_errmsg(m_userDB) << std::endl;
@@ -16,18 +16,46 @@ void LoginSystem::checkDB()
     else {
         std::cout << "Opened database successfully!" << std::endl;
     }
-    // Create a table
+
+    // Create a table only if it doesn't exist
     const char* sql = "CREATE TABLE IF NOT EXISTS USERS("
-        "USERNAME TEXT PRIMARY KEY     NOT NULL,"
-        "PASSWORD       TEXT    NOT NULL);";
+        "USERNAME TEXT PRIMARY KEY NOT NULL,"
+        "PASSWORD TEXT NOT NULL);";
+
     m_rc = sqlite3_exec(m_userDB, sql, 0, 0, &errMessage);
     if (m_rc != SQLITE_OK) {
         std::cerr << "SQL error: " << errMessage << std::endl;
         sqlite3_free(errMessage);
+        return;
     }
     else {
-        std::cout << "Table created successfully!" << std::endl;
+        std::cout << "Table created successfully or already exists!" << std::endl;
     }
+}
+
+void LoginSystem::countTables()
+{
+    sqlite3_stmt* stmt;
+    const char* query = "SELECT COUNT(*) FROM sqlite_master WHERE type='table';";
+
+    m_rc = sqlite3_prepare_v2(m_userDB, query, -1, &stmt, 0);
+    if (m_rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(m_userDB) << std::endl;
+        return;
+    }
+
+    // Execute the query and retrieve the result
+    m_rc = sqlite3_step(stmt);
+    if (m_rc == SQLITE_ROW) {
+        int tableCount = sqlite3_column_int(stmt, 0);  // First column contains the count
+        std::cout << "There are " << tableCount << " tables in the database." << std::endl;
+    }
+    else {
+        std::cerr << "Failed to execute query: " << sqlite3_errmsg(m_userDB) << std::endl;
+    }
+
+    // Clean up
+    sqlite3_finalize(stmt);
 }
 
 int LoginSystem::callback(void* NotUsed, int argc, char** argv, char** azColName) {
@@ -70,13 +98,22 @@ void LoginSystem::registerNewUser()
             std::cout << "Please enter a password: \n";
             std::string newPassword;
             std::cin >> newPassword;
+            // Generate a salt (for example, 8 bytes)
+            std::string salt = encryptor.generateSalt(8);
+
+            // Hash the password without salt
+            std::string hashedPassword = encryptor.hashPasswordSha256(newPassword);
+            std::cout << "Hashed Password: " << hashedPassword << std::endl;
             insertNewData(newUsername, newPassword);
 
         }
     }
     else {
         std::cerr << "Failed to execute query: " << sqlite3_errmsg(m_userDB) << std::endl;
+        return;
     }
+    std::cout << "Ready to Login!\n";
+    startSystem();
    
 }
 void LoginSystem::forgotPassword()
@@ -179,6 +216,7 @@ void LoginSystem::login()
         else {
             std::cout << "Username does not exist!" << std::endl;
             std::cout << "Please Register first\n";
+            startSystem();
         }
     }
     else {
@@ -205,7 +243,7 @@ void LoginSystem::startSystem()
         std::cerr << "Error: " << e.what() << std::endl;
         goto start;
     }
-    checkDB();
+    displayAllUsers();
     switch (userResponse) {
     case 0:
         login();
@@ -217,8 +255,7 @@ void LoginSystem::startSystem()
         forgotPassword();
         break;
     case 3:
-        registerNewUser();
-        break;
+        exit(0);
     }
 }
 void LoginSystem::displayAllUsers()
@@ -327,16 +364,172 @@ start:
         std::cerr << "Error: " << e.what() << std::endl;
         goto start;
     }
+    std::string userInput;
+    std::string userInputPassword;
+    switch (userResponse) {
+    case 0:
+    enterusername:
+        std::cout << "Please enter new username (cannot be the same username):\n";
+        std::cin >> userInput;
+        if (userInput == m_username) {
+            goto enterusername;
+        }
+        else {
+            setNewUsername(userInput);
+            break;
+    case 1:
+    enterpassword:
+        std::cout << "Please enter new password (cannot be the same password):\n";
+        std::cin >> userInputPassword;
+        if (userInput == m_username) {
+            goto enterpassword;
+        }
+        else {
+            setNewPassword(userInputPassword);
+            break;
+            break;
+    case 2:
+        std::cout << "Logging out.\n";
+        m_username = "";
+        m_password = "";
+        startSystem();
+        break;
+    case 3:
+        exit(0);
+        }
+        }
+    }
 }
+void LoginSystem::deleteTable()
+{
+    char* errMessage = 0;
+
+    // SQL query to drop the table
+    const char* sql = "DROP TABLE IF EXISTS USERS;";
+
+    m_rc = sqlite3_exec(m_userDB, sql, 0, 0, &errMessage);
+    if (m_rc != SQLITE_OK) {
+        std::cerr << "SQL error: " << errMessage << std::endl;
+        sqlite3_free(errMessage);
+    }
+    else {
+        std::cout << "Table deleted successfully!" << std::endl;
+    }
+}
+void LoginSystem::setNewUsername(const std::string& newUsername)
+{
+    sqlite3_stmt* stmt;         // SQLite prepared statement
+    const char* checkQuery = "SELECT COUNT(*) FROM users WHERE USERNAME = ?";
+
+    // First, check if the new username already exists in the database
+    m_rc = sqlite3_prepare_v2(m_userDB, checkQuery, -1, &stmt, 0);
+    if (m_rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(m_userDB) << std::endl;
+        return;
+    }
+
+    // Bind the new username to the prepared statement
+    sqlite3_bind_text(stmt, 1, newUsername.c_str(), -1, SQLITE_STATIC);
+
+    m_rc = sqlite3_step(stmt);
+    if (m_rc == SQLITE_ROW) {
+        int count = sqlite3_column_int(stmt, 0);
+        if (count > 0) {
+            std::cerr << "Username already exists. Please choose a different one." << std::endl;
+            return; // Username already taken, exit the function
+        }
+    }
+    else {
+        std::cerr << "Failed to execute query: " << sqlite3_errmsg(m_userDB) << std::endl;
+        sqlite3_finalize(stmt);
+        return;
+    }
+
+    // Now, proceed to update the username
+    const char* updateQuery = "UPDATE users SET USERNAME = ? WHERE USERNAME = ?";
+
+    m_rc = sqlite3_prepare_v2(m_userDB, updateQuery, -1, &stmt, 0);
+    if (m_rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(m_userDB) << std::endl;
+        sqlite3_finalize(stmt);
+        return;
+    }
+
+    // Bind the new username and the current username (to identify the user)
+    sqlite3_bind_text(stmt, 1, newUsername.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, m_username.c_str(), -1, SQLITE_STATIC);
+
+    // Execute the update query
+    m_rc = sqlite3_step(stmt);
+    if (m_rc != SQLITE_DONE) {
+        std::cerr << "Error executing query: " << sqlite3_errmsg(m_userDB) << std::endl;
+        return;
+    }
+    else {
+        std::cout << "Username updated successfully!" << std::endl;
+        m_username = newUsername; // Update the current username in the object
+    }
+
+    sqlite3_finalize(stmt);  // Finalize the statement
+    loginSystem();
+}
+void LoginSystem::setNewPassword(const std::string& newPassword)
+{
+    sqlite3_stmt* stmt;
+    const char* query = "UPDATE users SET PASSWORD = ? WHERE USERNAME = ?";  // Correct column name
+
+    m_rc = sqlite3_prepare_v2(m_userDB, query, -1, &stmt, 0);
+    if (m_rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(m_userDB) << std::endl;
+        sqlite3_close(m_userDB);
+        return;
+    }
+
+    sqlite3_bind_text(stmt, 1, newPassword.c_str(), -1, SQLITE_STATIC);  // Bind new password
+    sqlite3_bind_text(stmt, 2, m_username.c_str(), -1, SQLITE_STATIC);   // Bind the username
+
+    m_rc = sqlite3_step(stmt);
+    if (m_rc != SQLITE_DONE) {
+        std::cerr << "Error executing query: " << sqlite3_errmsg(m_userDB) << std::endl;
+    }
+    else {
+        std::cout << "Password updated successfully!" << std::endl;
+        m_password = newPassword;
+    }
+    loginSystem();  // Re-enter the login system after updating the password
+}
+
 void LoginSystem::closeDB()
 {
     sqlite3_close(m_userDB);
 }
+
+
 int main() {
 
     LoginSystem loginSystem;
+    loginSystem.checkDB();
+    loginSystem.countTables();
     loginSystem.startSystem();
     loginSystem.closeDB();
+    //Encryption encryptor;
+
+    //// Example password
+    //std::string password = "mysecretpassword";
+
+    //// Generate a salt (for example, 8 bytes)
+    //std::string salt = encryptor.generateSalt(8);
+
+    //// Hash the password without salt
+    //std::string hashedPassword = encryptor.hashPasswordSha256(password);
+    //std::cout << "Hashed Password: " << hashedPassword << std::endl;
+
+    //// Hash the password with salt
+    //std::string hashedPasswordWithSalt = encryptor.hashPasswordSha256Salt(password, salt);
+    //std::cout << "Hashed Password with Salt: " << hashedPasswordWithSalt << std::endl;
+
+    //// Print the salt
+    //std::cout << "Generated Salt: " << salt << std::endl;
     return 0;
 }
 
